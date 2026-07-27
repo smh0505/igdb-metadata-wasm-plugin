@@ -66,6 +66,24 @@ jobs:
           files: |
             dist/igdb_metadata_wasm_plugin.wasm
             dist/plugin.json
-          body: Auto-published by CI from plugin.json version ${{ steps.version.outputs.version }}.
+          body: |
+            Auto-published by CI from plugin.json version ${{ steps.version.outputs.version }}.
+
+            Paste this URL into Concourse's Settings -> Metadata Provider tab -> Add Plugin to
+            install:
+            https://github.com/smh0505/igdb-metadata-wasm-plugin/releases/latest/download/plugin.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write job summary
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          {
+            echo "### Published v${{ steps.version.outputs.version }}"
+            echo
+            echo "Paste this URL into Concourse's Settings -> Metadata Provider tab -> Add Plugin to install:"
+            echo
+            echo '```'
+            echo "https://github.com/smh0505/igdb-metadata-wasm-plugin/releases/latest/download/plugin.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
