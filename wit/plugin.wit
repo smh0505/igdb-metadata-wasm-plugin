@@ -1,0 +1,138 @@
+package gamelib:plugin@0.1.0;
+
+/// Capability surface exposed to every WASM plugin. Deliberately generic primitives
+/// (registry/file/process/network/scoped-storage) rather than semantic, per-integration
+/// functions - a plugin composes these itself (e.g. parsing VDF/XML) instead of us writing
+/// a bespoke Rust module per source. Storage functions are auto-namespaced by the host per
+/// plugin id, so a plugin can never read/write another plugin's data or core tables
+/// directly (see milestones.md Milestone 8's DB-access note).
+interface host {
+    record game-entry {
+        id: string,
+        title: string,
+        executable-path: string,
+        platform: string,
+        cover-art-url: option<string>,
+        install-dir: option<string>,
+    }
+
+    record locale-profile {
+        name: string,
+        guid: string,
+    }
+
+    /// Windows registry string value read. `hive` is one of "HKLM"/"HKCU".
+    read-registry-string: func(hive: string, path: string, value: string) -> option<string>;
+
+    /// Windows registry subkey name enumeration (e.g. listing installed game IDs under a
+    /// `Games` key) - `hive` is one of "HKLM"/"HKCU". Empty list (not an error) if the key
+    /// doesn't exist, matching `read-registry-string`'s "just means absent" treatment.
+    list-registry-keys: func(hive: string, path: string) -> result<list<string>, string>;
+
+    read-file: func(path: string) -> result<string, string>;
+    write-file: func(path: string, contents: string) -> result<_, string>;
+    list-dir: func(path: string) -> result<list<string>, string>;
+    path-exists: func(path: string) -> bool;
+    remove-dir: func(path: string) -> result<_, string>;
+
+    /// Fire-and-forget spawn (no wait/exit-code) - matches how launch() is used elsewhere
+    /// in this app; the host's own folder-based playtime tracking covers session duration.
+    spawn-process: func(path: string, args: list<string>) -> result<_, string>;
+
+    /// Spawns and blocks until the process exits - unlike spawn-process, for cases that
+    /// genuinely need to wait (e.g. a visible third-party installer window the plugin needs
+    /// to know has closed before continuing).
+    run-and-wait: func(path: string, args: list<string>, cwd: string) -> result<_, string>;
+
+    http-get: func(url: string) -> result<string, string>;
+    download-bytes: func(url: string) -> result<list<u8>, string>;
+
+    /// General-purpose HTTP request for calls http-get can't express - custom headers (e.g.
+    /// an Authorization bearer token) or a non-GET method with a body (e.g. IGDB's POST-based
+    /// query API). Returns the response body as text; use download-bytes instead for binary
+    /// responses. `headers` is a list of (name, value) pairs rather than a named record, so
+    /// this doesn't need a new record type declared just for it.
+    http-request: func(method: string, url: string, headers: list<tuple<string, string>>, body: option<string>) -> result<string, string>;
+
+    /// Extracts a zip archive's bytes into dest-dir, replacing anything already there.
+    extract-zip: func(bytes: list<u8>, dest-dir: string) -> result<_, string>;
+    /// If dir contains exactly one entry and it's a directory, returns that subdirectory's
+    /// path - otherwise returns dir unchanged. Real release zips commonly wrap their contents
+    /// in one top-level folder matching the archive name.
+    unwrap-single-subdir: func(dir: string) -> result<string, string>;
+    /// Atomically replaces dest with src (removing any existing dest first).
+    replace-dir: func(src: string, dest: string) -> result<_, string>;
+
+    /// This plugin's own writable directory (`<app data>/wasm-plugins/<kind>/<plugin-id>/`) -
+    /// for a plugin that manages its own downloaded dependency (e.g. a wrapper plugin's
+    /// managed install) rather than just reading/scanning existing files elsewhere.
+    plugin-dir: func() -> result<string, string>;
+
+    /// Scoped key-value settings, auto-prefixed with the calling plugin's id by the host.
+    settings-get: func(key: string) -> option<string>;
+    settings-set: func(key: string, value: string);
+
+    /// Scoped per-game key-value storage, auto-namespaced by the host per plugin id -
+    /// backs the `plugin_data` table rather than any core `games` column.
+    plugin-data-get: func(game-id: s64, key: string) -> option<string>;
+    plugin-data-set: func(game-id: s64, key: string, value: string);
+}
+
+/// Mirrors the existing TypeScript `SourcePlugin` interface (src/plugins/types.ts) -
+/// a WASM source plugin is a drop-in alternative implementation of the same contract.
+interface source-plugin {
+    use host.{game-entry};
+
+    scan: func() -> result<list<game-entry>, string>;
+    launch: func(entry: game-entry) -> result<_, string>;
+    get-install-status: func(entry: game-entry) -> result<bool, string>;
+}
+
+world source-plugin-world {
+    import host;
+    export source-plugin;
+}
+
+/// A compatibility wrapper (e.g. Locale Remulator/Locale Emulator) - manages its own download
+/// and install (into plugin-dir()), lists the locale profiles the user has set up, and
+/// launches a target executable through one of them. Fully self-contained: unlike the earlier
+/// design, the host no longer owns the wrapper's exe path at all - the plugin always installs
+/// to (and resolves) the same deterministic location under its own plugin-dir(), so there's
+/// nothing to pass in or persist on the host side.
+interface wrapper-plugin {
+    use host.{locale-profile};
+
+    /// Downloads the latest release, extracts it, seeds a default profile config if none
+    /// exists, and runs the real vendor installer (visible, blocking until closed) for
+    /// whatever registration step only it can do.
+    install: func() -> result<_, string>;
+    uninstall: func() -> result<_, string>;
+    is-installed: func() -> bool;
+
+    list-profiles: func() -> result<list<locale-profile>, string>;
+    launch: func(profile-guid: string, executable-path: string) -> result<_, string>;
+}
+
+world wrapper-plugin-world {
+    import host;
+    export wrapper-plugin;
+}
+
+/// Mirrors the existing TypeScript `MetadataProviderPlugin` interface (src/plugins/types.ts) -
+/// a WASM metadata provider is a drop-in alternative implementation of the same contract.
+interface metadata-plugin {
+    record metadata-result {
+        description: option<string>,
+        release-date: option<string>,
+        genres: list<string>,
+        cover-art-url: option<string>,
+        background-art-url: option<string>,
+    }
+
+    fetch-metadata: func(title: string) -> result<option<metadata-result>, string>;
+}
+
+world metadata-plugin-world {
+    import host;
+    export metadata-plugin;
+}

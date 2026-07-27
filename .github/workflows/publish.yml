@@ -1,0 +1,71 @@
+name: Build & Publish Plugin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "wit/**"
+      - "Cargo.toml"
+      - "plugin.json"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Read plugin version
+        id: version
+        run: echo "version=$(jq -r '.version' plugin.json)" >> "$GITHUB_OUTPUT"
+
+      # plugin.json's version is plain SemVer with real compatibility meaning (see the plugin
+      # versioning convention in Concourse's CLAUDE.md) - each version gets its own immutable
+      # release instead of overwriting a shared one, and republishing the same version twice is
+      # a no-op rather than clobbering an already-published artifact.
+      - name: Check whether this version is already published
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install wasm32-wasip1 target
+        if: steps.check.outputs.exists == 'false'
+        run: rustup target add wasm32-wasip1
+
+      - name: Install cargo-component
+        if: steps.check.outputs.exists == 'false'
+        run: cargo install cargo-component --locked
+
+      - name: Build
+        if: steps.check.outputs.exists == 'false'
+        run: cargo component build --release
+
+      - name: Stage release assets
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          mkdir -p dist
+          cp target/wasm32-wasip1/release/igdb_metadata_wasm_plugin.wasm dist/
+          cp plugin.json dist/
+
+      - name: Publish release
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          files: |
+            dist/igdb_metadata_wasm_plugin.wasm
+            dist/plugin.json
+          body: Auto-published by CI from plugin.json version ${{ steps.version.outputs.version }}.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

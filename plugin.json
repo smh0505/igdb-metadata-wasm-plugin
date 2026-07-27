@@ -1,0 +1,11 @@
+{
+  "id": "igdb-wasm",
+  "name": "IGDB (WASM)",
+  "version": "0.1.0",
+  "kind": "metadata",
+  "entry": "igdb_metadata_wasm_plugin.wasm",
+  "settingsSchema": [
+    { "key": "client_id", "label": "IGDB (Twitch) Client ID", "type": "text" },
+    { "key": "client_secret", "label": "IGDB (Twitch) Client Secret", "type": "password" }
+  ]
+}
