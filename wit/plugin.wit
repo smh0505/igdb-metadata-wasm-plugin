@@ -129,7 +129,24 @@ interface metadata-plugin {
         background-art-url: option<string>,
     }
 
-    fetch-metadata: func(title: string) -> result<option<metadata-result>, string>;
+    record metadata-candidate {
+        id: string,
+        label: string,
+        /// Optional thumbnail for the host's candidate picker to show alongside `label` - a
+        /// provider that has no per-result image (e.g. SteamGridDB's autocomplete search)
+        /// leaves this unset, the picker just renders text for that provider's section.
+        image-url: option<string>,
+    }
+
+    /// Returns every plausible match for `title` - usually 0 or 1, but can be more when a
+    /// provider's own listings are genuinely ambiguous (e.g. a duplicate/reissue sharing the
+    /// same title). The host auto-picks the sole candidate when exactly one comes back, shows
+    /// the user a picker when more than one does, and skips the provider entirely when none do.
+    search-candidates: func(title: string) -> result<list<metadata-candidate>, string>;
+
+    /// Fetches full metadata for one specific candidate previously returned by
+    /// search-candidates, identified by its id.
+    fetch-metadata-by-id: func(id: string) -> result<option<metadata-result>, string>;
 }
 
 world metadata-plugin-world {

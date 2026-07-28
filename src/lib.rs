@@ -5,11 +5,23 @@
 //! Requires a Twitch-issued client id/secret (IGDB auth runs through Twitch), set via this
 //! plugin's `settingsSchema`-declared `client_id`/`client_secret` settings (see `plugin.json`)
 //! - read back here through `host::settings-get`, namespaced by the host per plugin id.
+//!
+//! Two-step search-candidates/fetch-metadata-by-id split (metadata-plugin interface v2) rather
+//! than one direct fetch - lets the host disambiguate when IGDB's own search returns more than
+//! one plausible match instead of always committing to the first (relevance-ranked, not
+//! necessarily correct) result.
+//!
+//! Only listings whose `name` is an exact case-insensitive match to the query become
+//! candidates at all, same reasoning as `rawg-metadata-wasm-plugin`: IGDB's `search` keyword
+//! ranks by its own relevance score, not exactness, so blindly offering every top-N result as
+//! a "candidate" surfaced the picker far more than genuinely necessary - a query with no
+//! exact-name match returns zero candidates (left blank by the host) rather than a pile of
+//! only-loosely-related guesses.
 
 #[allow(warnings)]
 mod bindings;
 
-use bindings::exports::gamelib::plugin::metadata_plugin::{Guest, MetadataResult};
+use bindings::exports::gamelib::plugin::metadata_plugin::{Guest, MetadataCandidate, MetadataResult};
 use bindings::gamelib::plugin::host;
 
 struct IgdbPlugin;
@@ -17,6 +29,24 @@ struct IgdbPlugin;
 #[derive(serde::Deserialize)]
 struct TwitchTokenResponse {
     access_token: String,
+}
+
+#[derive(serde::Deserialize)]
+struct IgdbSearchResult {
+    id: u64,
+    name: String,
+    cover: Option<IgdbCover>,
+}
+
+#[derive(serde::Deserialize)]
+struct IgdbCover {
+    image_id: String,
+}
+
+/// IGDB's documented thumbnail URL pattern (`t_thumb` size) - the search response only ever
+/// gives back `cover.image_id`, the actual URL has to be built from it.
+fn igdb_thumbnail_url(image_id: &str) -> String {
+    format!("https://images.igdb.com/igdb/image/upload/t_thumb/{}.jpg", image_id)
 }
 
 #[derive(serde::Deserialize)]
@@ -65,26 +95,50 @@ fn get_access_token(client_id: &str, client_secret: &str) -> Result<String, Stri
     Ok(resp.access_token)
 }
 
+/// Re-authenticates on every call rather than caching a token across search-candidates/
+/// fetch-metadata-by-id - each WASM instantiation is short-lived and stateless (a fresh
+/// instance per host command), so there's no in-plugin place to cache it anyway.
+fn authenticated_headers() -> Result<(String, [(String, String); 2]), String> {
+    let (client_id, client_secret) = credentials()?;
+    let token = get_access_token(&client_id, &client_secret)?;
+    let headers = [
+        ("Client-ID".to_string(), client_id.clone()),
+        ("Authorization".to_string(), format!("Bearer {}", token)),
+    ];
+    Ok((client_id, headers))
+}
+
 impl Guest for IgdbPlugin {
-    fn fetch_metadata(title: String) -> Result<Option<MetadataResult>, String> {
-        let (client_id, client_secret) = credentials()?;
-        let token = get_access_token(&client_id, &client_secret)?;
+    fn search_candidates(title: String) -> Result<Vec<MetadataCandidate>, String> {
+        let (_client_id, headers) = authenticated_headers()?;
 
         let query = format!(
-            "search \"{}\"; fields summary,first_release_date,genres.name; limit 1;",
+            "search \"{}\"; fields name,cover.image_id; limit 10;",
             title.replace('"', "")
         );
-        let headers = [
-            ("Client-ID".to_string(), client_id.clone()),
-            ("Authorization".to_string(), format!("Bearer {}", token)),
-        ];
-        let body = host::http_request(
-            "POST",
-            "https://api.igdb.com/v4/games",
-            &headers,
-            Some(&query),
-        )?;
+        let body = host::http_request("POST", "https://api.igdb.com/v4/games", &headers, Some(&query))?;
+        let games: Vec<IgdbSearchResult> = serde_json::from_str(&body).map_err(|e| e.to_string())?;
 
+        Ok(games
+            .into_iter()
+            .filter(|g| g.name.eq_ignore_ascii_case(&title))
+            .map(|g| MetadataCandidate {
+                id: g.id.to_string(),
+                label: g.name,
+                image_url: g.cover.map(|c| igdb_thumbnail_url(&c.image_id)),
+            })
+            .collect())
+    }
+
+    fn fetch_metadata_by_id(id: String) -> Result<Option<MetadataResult>, String> {
+        let numeric_id: u64 = id.parse().map_err(|_| format!("Invalid IGDB id: {}", id))?;
+        let (_client_id, headers) = authenticated_headers()?;
+
+        let query = format!(
+            "fields summary,first_release_date,genres.name; where id = {};",
+            numeric_id
+        );
+        let body = host::http_request("POST", "https://api.igdb.com/v4/games", &headers, Some(&query))?;
         let games: Vec<IgdbGame> = serde_json::from_str(&body).map_err(|e| e.to_string())?;
         let Some(game) = games.into_iter().next() else {
             return Ok(None);

@@ -1647,16 +1647,206 @@ pub mod exports {
                             .finish()
                     }
                 }
+                #[derive(Clone)]
+                pub struct MetadataCandidate {
+                    pub id: _rt::String,
+                    pub label: _rt::String,
+                    /// Optional thumbnail for the host's candidate picker to show alongside `label` - a
+                    /// provider that has no per-result image (e.g. SteamGridDB's autocomplete search)
+                    /// leaves this unset, the picker just renders text for that provider's section.
+                    pub image_url: Option<_rt::String>,
+                }
+                impl ::core::fmt::Debug for MetadataCandidate {
+                    fn fmt(
+                        &self,
+                        f: &mut ::core::fmt::Formatter<'_>,
+                    ) -> ::core::fmt::Result {
+                        f.debug_struct("MetadataCandidate")
+                            .field("id", &self.id)
+                            .field("label", &self.label)
+                            .field("image-url", &self.image_url)
+                            .finish()
+                    }
+                }
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
-                pub unsafe fn _export_fetch_metadata_cabi<T: Guest>(
+                pub unsafe fn _export_search_candidates_cabi<T: Guest>(
                     arg0: *mut u8,
                     arg1: usize,
                 ) -> *mut u8 {
                     #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
                     let len0 = arg1;
                     let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
-                    let result1 = T::fetch_metadata(_rt::string_lift(bytes0));
+                    let result1 = T::search_candidates(_rt::string_lift(bytes0));
+                    let ptr2 = (&raw mut _RET_AREA.0).cast::<u8>();
+                    match result1 {
+                        Ok(e) => {
+                            *ptr2.add(0).cast::<u8>() = (0i32) as u8;
+                            let vec7 = e;
+                            let len7 = vec7.len();
+                            let layout7 = _rt::alloc::Layout::from_size_align_unchecked(
+                                vec7.len() * (7 * ::core::mem::size_of::<*const u8>()),
+                                ::core::mem::size_of::<*const u8>(),
+                            );
+                            let result7 = if layout7.size() != 0 {
+                                let ptr = _rt::alloc::alloc(layout7).cast::<u8>();
+                                if ptr.is_null() {
+                                    _rt::alloc::handle_alloc_error(layout7);
+                                }
+                                ptr
+                            } else {
+                                ::core::ptr::null_mut()
+                            };
+                            for (i, e) in vec7.into_iter().enumerate() {
+                                let base = result7
+                                    .add(i * (7 * ::core::mem::size_of::<*const u8>()));
+                                {
+                                    let MetadataCandidate {
+                                        id: id3,
+                                        label: label3,
+                                        image_url: image_url3,
+                                    } = e;
+                                    let vec4 = (id3.into_bytes()).into_boxed_slice();
+                                    let ptr4 = vec4.as_ptr().cast::<u8>();
+                                    let len4 = vec4.len();
+                                    ::core::mem::forget(vec4);
+                                    *base
+                                        .add(::core::mem::size_of::<*const u8>())
+                                        .cast::<usize>() = len4;
+                                    *base.add(0).cast::<*mut u8>() = ptr4.cast_mut();
+                                    let vec5 = (label3.into_bytes()).into_boxed_slice();
+                                    let ptr5 = vec5.as_ptr().cast::<u8>();
+                                    let len5 = vec5.len();
+                                    ::core::mem::forget(vec5);
+                                    *base
+                                        .add(3 * ::core::mem::size_of::<*const u8>())
+                                        .cast::<usize>() = len5;
+                                    *base
+                                        .add(2 * ::core::mem::size_of::<*const u8>())
+                                        .cast::<*mut u8>() = ptr5.cast_mut();
+                                    match image_url3 {
+                                        Some(e) => {
+                                            *base
+                                                .add(4 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<u8>() = (1i32) as u8;
+                                            let vec6 = (e.into_bytes()).into_boxed_slice();
+                                            let ptr6 = vec6.as_ptr().cast::<u8>();
+                                            let len6 = vec6.len();
+                                            ::core::mem::forget(vec6);
+                                            *base
+                                                .add(6 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<usize>() = len6;
+                                            *base
+                                                .add(5 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<*mut u8>() = ptr6.cast_mut();
+                                        }
+                                        None => {
+                                            *base
+                                                .add(4 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<u8>() = (0i32) as u8;
+                                        }
+                                    };
+                                }
+                            }
+                            *ptr2
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len7;
+                            *ptr2
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = result7;
+                        }
+                        Err(e) => {
+                            *ptr2.add(0).cast::<u8>() = (1i32) as u8;
+                            let vec8 = (e.into_bytes()).into_boxed_slice();
+                            let ptr8 = vec8.as_ptr().cast::<u8>();
+                            let len8 = vec8.len();
+                            ::core::mem::forget(vec8);
+                            *ptr2
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>() = len8;
+                            *ptr2
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>() = ptr8.cast_mut();
+                        }
+                    };
+                    ptr2
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn __post_return_search_candidates<T: Guest>(arg0: *mut u8) {
+                    let l0 = i32::from(*arg0.add(0).cast::<u8>());
+                    match l0 {
+                        0 => {
+                            let l1 = *arg0
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l2 = *arg0
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            let base10 = l1;
+                            let len10 = l2;
+                            for i in 0..len10 {
+                                let base = base10
+                                    .add(i * (7 * ::core::mem::size_of::<*const u8>()));
+                                {
+                                    let l3 = *base.add(0).cast::<*mut u8>();
+                                    let l4 = *base
+                                        .add(::core::mem::size_of::<*const u8>())
+                                        .cast::<usize>();
+                                    _rt::cabi_dealloc(l3, l4, 1);
+                                    let l5 = *base
+                                        .add(2 * ::core::mem::size_of::<*const u8>())
+                                        .cast::<*mut u8>();
+                                    let l6 = *base
+                                        .add(3 * ::core::mem::size_of::<*const u8>())
+                                        .cast::<usize>();
+                                    _rt::cabi_dealloc(l5, l6, 1);
+                                    let l7 = i32::from(
+                                        *base
+                                            .add(4 * ::core::mem::size_of::<*const u8>())
+                                            .cast::<u8>(),
+                                    );
+                                    match l7 {
+                                        0 => {}
+                                        _ => {
+                                            let l8 = *base
+                                                .add(5 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<*mut u8>();
+                                            let l9 = *base
+                                                .add(6 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<usize>();
+                                            _rt::cabi_dealloc(l8, l9, 1);
+                                        }
+                                    }
+                                }
+                            }
+                            _rt::cabi_dealloc(
+                                base10,
+                                len10 * (7 * ::core::mem::size_of::<*const u8>()),
+                                ::core::mem::size_of::<*const u8>(),
+                            );
+                        }
+                        _ => {
+                            let l11 = *arg0
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<*mut u8>();
+                            let l12 = *arg0
+                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            _rt::cabi_dealloc(l11, l12, 1);
+                        }
+                    }
+                }
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                pub unsafe fn _export_fetch_metadata_by_id_cabi<T: Guest>(
+                    arg0: *mut u8,
+                    arg1: usize,
+                ) -> *mut u8 {
+                    #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
+                    let len0 = arg1;
+                    let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
+                    let result1 = T::fetch_metadata_by_id(_rt::string_lift(bytes0));
                     let ptr2 = (&raw mut _RET_AREA.0).cast::<u8>();
                     match result1 {
                         Ok(e) => {
@@ -1822,7 +2012,9 @@ pub mod exports {
                 }
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
-                pub unsafe fn __post_return_fetch_metadata<T: Guest>(arg0: *mut u8) {
+                pub unsafe fn __post_return_fetch_metadata_by_id<T: Guest>(
+                    arg0: *mut u8,
+                ) {
                     let l0 = i32::from(*arg0.add(0).cast::<u8>());
                     match l0 {
                         0 => {
@@ -1939,23 +2131,42 @@ pub mod exports {
                     }
                 }
                 pub trait Guest {
-                    fn fetch_metadata(
+                    /// Returns every plausible match for `title` - usually 0 or 1, but can be more when a
+                    /// provider's own listings are genuinely ambiguous (e.g. a duplicate/reissue sharing the
+                    /// same title). The host auto-picks the sole candidate when exactly one comes back, shows
+                    /// the user a picker when more than one does, and skips the provider entirely when none do.
+                    fn search_candidates(
                         title: _rt::String,
+                    ) -> Result<_rt::Vec<MetadataCandidate>, _rt::String>;
+                    /// Fetches full metadata for one specific candidate previously returned by
+                    /// search-candidates, identified by its id.
+                    fn fetch_metadata_by_id(
+                        id: _rt::String,
                     ) -> Result<Option<MetadataResult>, _rt::String>;
                 }
                 #[doc(hidden)]
                 macro_rules! __export_gamelib_plugin_metadata_plugin_0_1_0_cabi {
                     ($ty:ident with_types_in $($path_to_types:tt)*) => {
                         const _ : () = { #[unsafe (export_name =
-                        "gamelib:plugin/metadata-plugin@0.1.0#fetch-metadata")] unsafe
-                        extern "C" fn export_fetch_metadata(arg0 : * mut u8, arg1 :
+                        "gamelib:plugin/metadata-plugin@0.1.0#search-candidates")] unsafe
+                        extern "C" fn export_search_candidates(arg0 : * mut u8, arg1 :
                         usize,) -> * mut u8 { unsafe { $($path_to_types)*::
-                        _export_fetch_metadata_cabi::<$ty > (arg0, arg1) } } #[unsafe
+                        _export_search_candidates_cabi::<$ty > (arg0, arg1) } } #[unsafe
                         (export_name =
-                        "cabi_post_gamelib:plugin/metadata-plugin@0.1.0#fetch-metadata")]
-                        unsafe extern "C" fn _post_return_fetch_metadata(arg0 : * mut
+                        "cabi_post_gamelib:plugin/metadata-plugin@0.1.0#search-candidates")]
+                        unsafe extern "C" fn _post_return_search_candidates(arg0 : * mut
                         u8,) { unsafe { $($path_to_types)*::
-                        __post_return_fetch_metadata::<$ty > (arg0) } } };
+                        __post_return_search_candidates::<$ty > (arg0) } } #[unsafe
+                        (export_name =
+                        "gamelib:plugin/metadata-plugin@0.1.0#fetch-metadata-by-id")]
+                        unsafe extern "C" fn export_fetch_metadata_by_id(arg0 : * mut u8,
+                        arg1 : usize,) -> * mut u8 { unsafe { $($path_to_types)*::
+                        _export_fetch_metadata_by_id_cabi::<$ty > (arg0, arg1) } }
+                        #[unsafe (export_name =
+                        "cabi_post_gamelib:plugin/metadata-plugin@0.1.0#fetch-metadata-by-id")]
+                        unsafe extern "C" fn _post_return_fetch_metadata_by_id(arg0 : *
+                        mut u8,) { unsafe { $($path_to_types)*::
+                        __post_return_fetch_metadata_by_id::<$ty > (arg0) } } };
                     };
                 }
                 #[doc(hidden)]
@@ -2079,8 +2290,8 @@ pub(crate) use __export_metadata_plugin_world_impl as export;
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 1244] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xd0\x08\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 1339] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xaf\x09\x01A\x02\x01\
 A\x04\x01B5\x01ks\x01r\x06\x02ids\x05titles\x0fexecutable-paths\x08platforms\x0d\
 cover-art-url\0\x0binstall-dir\0\x04\0\x0agame-entry\x03\0\x01\x01r\x02\x04names\
 \x04guids\x04\0\x0elocale-profile\x03\0\x03\x01@\x03\x04hives\x04paths\x05values\
@@ -2100,13 +2311,15 @@ s\x01@\x01\x03urls\0\x14\x04\0\x0edownload-bytes\x01\x15\x01o\x02ss\x01p\x16\x01
 \x03keys\0\0\x04\0\x0csettings-get\x01\x1d\x01@\x02\x03keys\x05values\x01\0\x04\0\
 \x0csettings-set\x01\x1e\x01@\x02\x07game-idx\x03keys\0\0\x04\0\x0fplugin-data-g\
 et\x01\x1f\x01@\x03\x07game-idx\x03keys\x05values\x01\0\x04\0\x0fplugin-data-set\
-\x01\x20\x03\0\x19gamelib:plugin/host@0.1.0\x05\0\x01B\x08\x01ks\x01ps\x01r\x05\x0b\
+\x01\x20\x03\0\x19gamelib:plugin/host@0.1.0\x05\0\x01B\x0e\x01ks\x01ps\x01r\x05\x0b\
 description\0\x0crelease-date\0\x06genres\x01\x0dcover-art-url\0\x12background-a\
-rt-url\0\x04\0\x0fmetadata-result\x03\0\x02\x01k\x03\x01j\x01\x04\x01s\x01@\x01\x05\
-titles\0\x05\x04\0\x0efetch-metadata\x01\x06\x04\0$gamelib:plugin/metadata-plugi\
-n@0.1.0\x05\x01\x04\0*gamelib:plugin/metadata-plugin-world@0.1.0\x04\0\x0b\x1b\x01\
-\0\x15metadata-plugin-world\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dw\
-it-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
+rt-url\0\x04\0\x0fmetadata-result\x03\0\x02\x01r\x03\x02ids\x05labels\x09image-u\
+rl\0\x04\0\x12metadata-candidate\x03\0\x04\x01p\x05\x01j\x01\x06\x01s\x01@\x01\x05\
+titles\0\x07\x04\0\x11search-candidates\x01\x08\x01k\x03\x01j\x01\x09\x01s\x01@\x01\
+\x02ids\0\x0a\x04\0\x14fetch-metadata-by-id\x01\x0b\x04\0$gamelib:plugin/metadat\
+a-plugin@0.1.0\x05\x01\x04\0*gamelib:plugin/metadata-plugin-world@0.1.0\x04\0\x0b\
+\x1b\x01\0\x15metadata-plugin-world\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\
+\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {
