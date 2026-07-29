@@ -12,6 +12,11 @@ on:
 
 permissions:
   contents: write
+  # Milestone 14 (Concourse) - id-token lets the job request a short-lived Sigstore signing
+  # cert bound to this exact workflow run's OIDC identity; attestations lets it publish the
+  # resulting provenance attestation via GitHub's API. Free for public repos.
+  id-token: write
+  attestations: write
 
 jobs:
   publish:
@@ -56,6 +61,18 @@ jobs:
           mkdir -p dist
           cp target/wasm32-wasip1/release/igdb_metadata_wasm_plugin.wasm dist/
           cp plugin.json dist/
+
+      # Milestone 14 (Concourse) - signs the built .wasm with a Sigstore attestation binding
+      # it to this exact workflow run (repo + commit + workflow file), verifiable later via
+      # `gh attestation verify` or Concourse's own install-time check
+      # (plugin_verification.rs). Proves provenance/integrity ("this really is what this
+      # repo's CI built"), not the author's trustworthiness - see Concourse's devlog for that
+      # distinction.
+      - name: Attest build provenance
+        if: steps.check.outputs.exists == 'false'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/igdb_metadata_wasm_plugin.wasm
 
       - name: Publish release
         if: steps.check.outputs.exists == 'false'

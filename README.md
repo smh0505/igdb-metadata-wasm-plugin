@@ -56,6 +56,21 @@ Copy the compiled `.wasm` and `plugin.json` into
 `%APPDATA%\com.bloppy.concourse\wasm-plugins\metadata\igdb-wasm\`). It'll show up in Settings'
 Plugins panel under the Metadata Provider tab next time the app starts, as **IGDB**.
 
+## Signing
+
+Every release's `.wasm` is signed with a [Sigstore](https://www.sigstore.dev/) build-provenance
+attestation (`actions/attest-build-provenance` in CI) binding it to the exact commit and
+workflow run that built it. Verify manually with the GitHub CLI:
+
+```sh
+gh attestation verify <file> --repo smh0505/igdb-metadata-wasm-plugin
+```
+
+Concourse checks this automatically on install (`plugin_verification.rs`) and shows the result
+in the install-confirmation dialog - advisory only for now, not a hard gate (see that module's
+own doc comment for why: it proves the artifact really came from this repo's CI, not that this
+repo's author is trustworthy - that's a separate, harder problem).
+
 ## Versioning
 
 Plain SemVer (`Cargo.toml` + `plugin.json`'s `version`), independent of Concourse's own

@@ -1,7 +1,7 @@
 {
   "id": "igdb-wasm",
   "name": "IGDB",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "kind": "metadata",
   "entry": "igdb_metadata_wasm_plugin.wasm",
   "settingsSchema": [
