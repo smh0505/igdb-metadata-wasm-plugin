@@ -104,3 +104,17 @@ jobs:
             echo "https://github.com/smh0505/igdb-metadata-wasm-plugin/releases/latest/download/plugin.json"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Called directly here rather than via a separate release:published-triggered workflow -
+      # action-gh-release above publishes using the default GITHUB_TOKEN, and GitHub does not
+      # let events created by that token trigger other workflows in the same repo (loop
+      # prevention), so a release:published workflow would just never fire.
+      - name: Notify concourse-plugin-registry
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.REGISTRY_DISPATCH_TOKEN }}
+        run: |
+          gh api repos/smh0505/concourse-plugin-registry/dispatches \
+            -f event_type=plugin-release \
+            -f "client_payload[repo]=${{ github.repository }}" \
+            -f "client_payload[tag]=v${{ steps.version.outputs.version }}"
