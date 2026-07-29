@@ -22,6 +22,12 @@ required) - set them in Concourse's Settings under this plugin's row (rendered f
 `plugin.json`'s `settingsSchema`, a generic form the host builds for any WASM plugin that
 declares one; no custom UI code needed on either side).
 
+## Permissions
+
+Declares `httpScopes: ["id.twitch.tv", "api.igdb.com"]` (Milestone 13 URL allowlisting) - both
+are needed (Twitch OAuth token exchange, then the actual IGDB query), declared separately since
+neither is a subdomain of the other.
+
 ## Building
 
 ```sh

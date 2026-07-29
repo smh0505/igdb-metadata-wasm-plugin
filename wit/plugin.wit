@@ -35,6 +35,15 @@ interface host {
     path-exists: func(path: string) -> bool;
     remove-dir: func(path: string) -> result<_, string>;
 
+    /// Milestone 13 path allowlisting - requests read access to a directory this plugin
+    /// discovered at runtime (e.g. wherever the user's Steam install actually put its library
+    /// folders), which can't be declared statically in plugin.json the way a fixed path or
+    /// registry key prefix can. The host only grants this if it recognizes the plugin id and
+    /// the path passes a real structural check for that vendor (e.g. a "steamapps"
+    /// subdirectory for Steam) - an unrecognized plugin id is rejected outright rather than
+    /// silently trusted.
+    request-read-scope: func(path: string) -> result<_, string>;
+
     /// Fire-and-forget spawn (no wait/exit-code) - matches how launch() is used elsewhere
     /// in this app; the host's own folder-based playtime tracking covers session duration.
     spawn-process: func(path: string, args: list<string>) -> result<_, string>;
