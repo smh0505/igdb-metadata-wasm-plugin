@@ -114,7 +114,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.REGISTRY_DISPATCH_TOKEN }}
         run: |
+          id=$(jq -r '.id' plugin.json)
           gh api repos/smh0505/concourse-plugin-registry/dispatches \
             -f event_type=plugin-release \
-            -f "client_payload[repo]=${{ github.repository }}" \
-            -f "client_payload[tag]=v${{ steps.version.outputs.version }}"
+            -f "client_payload[id]=$id" \
+            -f "client_payload[ref]=v${{ steps.version.outputs.version }}"
